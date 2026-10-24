@@ -1,0 +1,1087 @@
+from __future__ import annotations
+
+# LIBRERIAS
+import random
+import math
+from array import array
+from collections import deque
+import pygame
+
+pygame.init()
+
+
+# TAMAÑO DE LA VENTANA Y VELOCIDAD DEL JUEGO
+WINDOWED_SIZE = (1100, 760)
+FPS = 60
+WINDOW_TITLE = "RACE MAZE | PIXEL CIRCUIT"
+
+# COLORES DEL JUEGO
+WHITE = (244, 244, 244)
+SOFT_WHITE = (222, 226, 230)
+BLACK = (13, 16, 20)
+HUD_BG = (11, 18, 31)
+GRASS = (29, 120, 58)
+GRASS_DARK = (21, 95, 47)
+ASPHALT = (55, 59, 67)
+ASPHALT_DARK = (47, 51, 58)
+YELLOW = (252, 202, 62)
+GOLD = (255, 186, 39)
+GREEN = (58, 232, 122)
+RED = (229, 55, 65)
+RED_DARK = (171, 30, 43)
+CYAN = (86, 211, 255)
+BLUE = (86, 148, 255)
+SHADOW = (0, 0, 0, 170)
+DARK_TIRE = (14, 19, 27)
+MID_TIRE = (52, 66, 89)
+LIGHT_TIRE = (94, 116, 145)
+SKY_BLUE = (97, 192, 230)
+
+# MODELOS DE CARROS Y COLORES DE ESCUDERIAS
+CAR_MODELS = ["SPRINT", "TURBO GT", "HYPER", "FORMULA"]
+
+
+F1_TEAMS = [
+    {"name": "Ferrari", "colors": {"X": (16, 16, 18), "R": (220, 36, 31), "D": (156, 24, 21), "W": (255, 243, 236), "B": (18, 26, 32), "L": (68, 82, 92), "Y": (255, 215, 76)}},
+    {"name": "McLaren", "colors": {"X": (17, 17, 21), "R": (255, 128, 0), "D": (196, 83, 0), "W": (244, 247, 250), "B": (19, 24, 31), "L": (76, 86, 102), "Y": (85, 201, 255)}},
+    {"name": "Mercedes", "colors": {"X": (16, 18, 22), "R": (185, 191, 200), "D": (123, 129, 138), "W": (245, 247, 250), "B": (18, 27, 31), "L": (88, 101, 111), "Y": (39, 244, 210)}},
+    {"name": "Red Bull", "colors": {"X": (14, 16, 26), "R": (34, 60, 126), "D": (22, 39, 86), "W": (249, 236, 231), "B": (13, 18, 30), "L": (66, 83, 115), "Y": (255, 200, 54)}},
+    {"name": "Aston Martin", "colors": {"X": (13, 20, 19), "R": (0, 110, 91), "D": (0, 74, 61), "W": (233, 243, 238), "B": (16, 27, 26), "L": (77, 101, 97), "Y": (160, 255, 197)}},
+    {"name": "Alpine", "colors": {"X": (17, 17, 26), "R": (0, 129, 255), "D": (0, 86, 170), "W": (247, 241, 255), "B": (19, 23, 37), "L": (87, 96, 130), "Y": (255, 90, 180)}},
+    {"name": "Williams", "colors": {"X": (15, 17, 22), "R": (0, 108, 255), "D": (0, 70, 173), "W": (243, 247, 255), "B": (19, 25, 37), "L": (73, 92, 126), "Y": (137, 228, 255)}},
+    {"name": "Haas", "colors": {"X": (18, 18, 21), "R": (225, 227, 230), "D": (168, 172, 176), "W": (255, 255, 255), "B": (25, 30, 35), "L": (87, 94, 101), "Y": (222, 40, 51)}},
+    {"name": "Kick Sauber", "colors": {"X": (13, 18, 16), "R": (45, 189, 61), "D": (28, 126, 39), "W": (235, 245, 236), "B": (16, 25, 19), "L": (81, 102, 83), "Y": (160, 255, 87)}},
+    {"name": "Racing Bulls", "colors": {"X": (16, 19, 26), "R": (236, 243, 252), "D": (170, 180, 194), "W": (255, 255, 255), "B": (28, 39, 60), "L": (95, 110, 139), "Y": (35, 96, 255)}},
+    {"name": "Cadillac", "colors": {"X": (18, 20, 26), "R": (30, 32, 37), "D": (10, 13, 19), "W": (244, 242, 237), "B": (35, 43, 53), "L": (95, 106, 118), "Y": (218, 184, 108)}},
+    {"name": "Audi", "colors": {"X": (17, 19, 23), "R": (207, 25, 42), "D": (127, 16, 30), "W": (245, 246, 250), "B": (29, 32, 40), "L": (96, 100, 117), "Y": (248, 122, 130)}},
+]
+
+GRAY_TEAM = {"name": "Neutral", "colors": {"X": (17, 19, 25), "R": (188, 193, 200), "D": (128, 134, 144), "W": (244, 246, 249), "B": (36, 42, 52), "L": (84, 92, 103), "Y": (226, 232, 239)}}
+
+# TIPOS DE LETRA
+TITLE_FONT_NAME = (
+    pygame.font.match_font("arialblack")
+    or pygame.font.match_font("impact")
+    or pygame.font.match_font("verdana")
+    or pygame.font.match_font("dejavusans")
+)
+BODY_FONT_NAME = (
+    pygame.font.match_font("verdana")
+    or pygame.font.match_font("arial")
+    or pygame.font.match_font("dejavusans")
+)
+
+# FUNCIONES PARA LOS TEXTOS
+# crea las letras grandes de los titulos
+def make_title_font(size: int) -> pygame.font.Font:
+    font = pygame.font.Font(TITLE_FONT_NAME, size)
+    font.set_bold(True)
+    return font
+
+
+# crea las letras normales del juego
+def make_font(size: int) -> pygame.font.Font:
+    font = pygame.font.Font(BODY_FONT_NAME, size)
+    font.set_bold(True)
+    return font
+
+
+# prepara texto con estilo de videojuego
+def render_pixel_text(text: str, color: tuple[int, int, int], *, base_size: int = 8, scale: int = 3) -> pygame.Surface:
+    font = make_title_font(max(14, base_size * scale))
+    return font.render(text, True, color)
+
+
+# pone un borde al texto para que se lea mejor
+def render_text_with_outline(text: str, font: pygame.font.Font, color, outline=(12, 16, 24), thickness: int = 2) -> pygame.Surface:
+    base = font.render(text, True, color)
+    surf = pygame.Surface((base.get_width() + thickness * 2, base.get_height() + thickness * 2), pygame.SRCALPHA)
+    for ox in range(-thickness, thickness + 1):
+        for oy in range(-thickness, thickness + 1):
+            if ox == 0 and oy == 0:
+                continue
+            surf.blit(font.render(text, True, outline), (ox + thickness, oy + thickness))
+    surf.blit(base, (thickness, thickness))
+    return surf
+
+# SONIDOS DEL JUEGO
+# crea sonidos sencillos con diferentes frecuencias
+def synth_sound(frequencies, duration=0.18, volume=0.20):
+    if not pygame.mixer.get_init():
+        return None
+    rate, _, channels = pygame.mixer.get_init()
+    total = max(1, int(rate * duration))
+    values = array('h')
+    for i in range(total):
+        freq = frequencies[min(len(frequencies)-1, int(i / total * len(frequencies)))]
+        wave = 1.0 if math.sin(2 * math.pi * freq * i / rate) >= 0 else -1.0
+        envelope = min(1, i / (rate * 0.012)) * max(0.0, 1-i / total)
+        value = int(24000 * volume * wave * envelope)
+        values.extend([value] * channels)
+    try:
+        return pygame.mixer.Sound(buffer=values.tobytes())
+    except pygame.error:
+        return None
+
+# DIBUJOS Y SPRITES DEL JUEGO
+# sirve para colocar un rectangulo desde su centro
+def rect_from_center(center: tuple[int, int], size: tuple[int, int]) -> pygame.Rect:
+    w, h = size
+    return pygame.Rect(center[0] - w // 2, center[1] - h // 2, w, h)
+
+
+# dibuja las llantas que usamos como paredes
+def build_tire_sprite(size: int) -> pygame.Surface:
+    px = pygame.Surface((16, 16), pygame.SRCALPHA)
+    px.fill((0, 0, 0, 0))
+    for rect in [(4, 0, 8, 16), (2, 2, 12, 12), (1, 4, 14, 8), (0, 6, 16, 4)]:
+        pygame.draw.rect(px, (10, 13, 20), rect)
+    for rect in [(4, 2, 8, 12), (2, 4, 12, 8), (3, 3, 10, 10)]:
+        pygame.draw.rect(px, (42, 51, 68), rect)
+    pygame.draw.rect(px, (68, 80, 99), (4, 3, 8, 2))
+    pygame.draw.rect(px, (20, 25, 35), (5, 5, 6, 6))
+    pygame.draw.rect(px, (102, 119, 139), (6, 5, 4, 2))
+    pygame.draw.rect(px, (87, 105, 128), (5, 7, 2, 3))
+    pygame.draw.rect(px, (5, 9, 17), (7, 7, 3, 3))
+    pygame.draw.rect(px, (65, 81, 105), (8, 8, 1, 1))
+    return pygame.transform.scale(px, (size, size))
+
+
+# dibuja las monedas que tenemos que recoger
+def build_coin_sprite(size: int) -> pygame.Surface:
+    surf = pygame.Surface((size, size), pygame.SRCALPHA)
+    u = max(1, size // 14)
+    pygame.draw.rect(surf, (158, 93, 13), (2 * u, 3 * u, 10 * u, 8 * u))
+    pygame.draw.rect(surf, GOLD, (3 * u, 2 * u, 8 * u, 8 * u))
+    pygame.draw.rect(surf, YELLOW, (4 * u, 3 * u, 3 * u, 2 * u))
+    pygame.draw.rect(surf, (255, 236, 165), (5 * u, 4 * u, 2 * u, 2 * u))
+    pygame.draw.rect(surf, (232, 165, 25), (5 * u, 5 * u, 4 * u, 3 * u), 1)
+    return surf
+
+
+# dibuja la meta y muestra si esta bloqueada
+def build_goal_sprite(size: int, locked: bool) -> pygame.Surface:
+    surf = pygame.Surface((size, size), pygame.SRCALPHA)
+    u = max(1, size // 12)
+    colors = [(118, 123, 130), BLACK] if locked else [WHITE, BLACK]
+    for row in range(6):
+        for col in range(6):
+            color = colors[(row + col) % 2]
+            pygame.draw.rect(surf, color, (col * 2 * u, row * 2 * u, 2 * u, 2 * u))
+    pygame.draw.rect(surf, SOFT_WHITE, (0, 0, 12 * u, 12 * u), 1)
+    if locked:
+        pygame.draw.rect(surf, RED, (3 * u, 4 * u, 6 * u, 4 * u))
+        pygame.draw.rect(surf, WHITE, (5 * u, 5 * u, 2 * u, 2 * u))
+    else:
+        pygame.draw.rect(surf, GREEN, (2 * u, 8 * u, 8 * u, 2 * u))
+    return surf
+
+
+# dibuja los cuatro modelos y les aplica los colores elegidos
+def build_car_sprite(size: int, facing: tuple[int, int], car_index: int = 0, palette: dict | None = None) -> pygame.Surface:
+    if palette is None:
+        palette = F1_TEAMS[0]["colors"]
+    body = palette["R"]
+    shade = palette["D"]
+    light = palette["W"]
+    glass = palette["B"]
+    reflection = palette["L"]
+    trim = palette["Y"]
+    black = palette["X"]
+    px = pygame.Surface((40, 60), pygame.SRCALPHA)
+
+    def block(color, x, y, w, h):
+        pygame.draw.rect(px, color, (x, y, w, h))
+
+    def poly(color, points):
+        pygame.draw.polygon(px, color, points)
+
+    model = car_index % 4
+
+    if model == 0:
+        for x in (4, 31):
+            block(black, x, 15, 5, 10)
+            block(black, x, 36, 5, 10)
+        poly(black, [(12, 2), (28, 2), (33, 7), (34, 12), (34, 49), (30, 57), (10, 57), (6, 49), (6, 12), (7, 7)])
+        poly(body, [(13, 4), (27, 4), (31, 9), (32, 13), (32, 48), (28, 55), (12, 55), (8, 48), (8, 13), (9, 9)])
+        poly(light, [(14, 5), (26, 5), (29, 8), (30, 12), (10, 12), (11, 8)])
+        poly(glass, [(12, 14), (28, 14), (30, 19), (29, 27), (11, 27), (10, 19)])
+        poly(reflection, [(13, 15), (22, 15), (25, 17), (15, 17)])
+        block(shade, 10, 28, 20, 2)
+        poly(glass, [(13, 31), (27, 31), (28, 38), (12, 38)])
+        block(shade, 11, 39, 18, 3)
+        block(black, 13, 22, 2, 9)
+        block(black, 25, 22, 2, 9)
+        block(trim, 18, 5, 4, 49)
+        block(light, 17, 5, 1, 49)
+        block(trim, 11, 51, 4, 2)
+        block(trim, 25, 51, 4, 2)
+        block(light, 10, 11, 3, 2)
+        block(light, 27, 11, 3, 2)
+        block(shade, 14, 46, 12, 4)
+    elif model == 1:
+        for x in (3, 32):
+            block(black, x, 15, 5, 10)
+            block(black, x, 36, 5, 10)
+        poly(black, [(11, 2), (29, 2), (33, 6), (35, 13), (35, 50), (31, 57), (9, 57), (5, 50), (5, 13), (7, 6)])
+        poly(body, [(12, 4), (28, 4), (31, 8), (33, 14), (33, 49), (29, 55), (11, 55), (7, 49), (7, 14), (9, 8)])
+        block(shade, 13, 6, 14, 4)
+        block(trim, 15, 5, 3, 49)
+        block(trim, 22, 5, 3, 49)
+        block(light, 18, 5, 2, 49)
+        block(light, 20, 5, 2, 49)
+        poly(glass, [(12, 14), (28, 14), (31, 20), (29, 28), (11, 28), (9, 20)])
+        poly(reflection, [(13, 15), (21, 15), (24, 18), (14, 18)])
+        block(black, 13, 22, 2, 9)
+        block(black, 25, 22, 2, 9)
+        block(shade, 10, 30, 20, 4)
+        poly(glass, [(13, 37), (27, 37), (26, 42), (14, 42)])
+        block(trim, 9, 49, 6, 3)
+        block(trim, 25, 49, 6, 3)
+        block(light, 10, 11, 3, 2)
+        block(light, 27, 11, 3, 2)
+        block(black, 15, 45, 10, 4)
+    elif model == 2:
+        for x in (4, 31):
+            block(black, x, 15, 4, 10)
+            block(black, x, 36, 4, 10)
+        poly(black, [(12, 2), (28, 2), (32, 6), (34, 12), (34, 50), (30, 57), (10, 57), (6, 50), (6, 12), (8, 6)])
+        poly(body, [(13, 4), (27, 4), (30, 8), (32, 13), (32, 49), (28, 55), (12, 55), (8, 49), (8, 13), (10, 8)])
+        poly(light, [(14, 5), (26, 5), (29, 8), (30, 12), (10, 12), (11, 8)])
+        block(trim, 17, 5, 6, 49)
+        block(light, 19, 5, 2, 49)
+        poly(glass, [(12, 14), (28, 14), (30, 20), (29, 27), (11, 27), (10, 20)])
+        poly(reflection, [(14, 15), (23, 15), (26, 18), (15, 18)])
+        block(shade, 10, 29, 20, 3)
+        poly(glass, [(13, 33), (27, 33), (28, 41), (12, 41)])
+        block(trim, 11, 18, 2, 21)
+        block(trim, 27, 18, 2, 21)
+        block(black, 12, 21, 2, 10)
+        block(black, 26, 21, 2, 10)
+        block(trim, 10, 50, 4, 3)
+        block(trim, 26, 50, 4, 3)
+        block(light, 10, 11, 3, 2)
+        block(light, 27, 11, 3, 2)
+        block(shade, 14, 43, 12, 3)
+    else:
+        block(black, 2, 16, 6, 10)
+        block(black, 32, 16, 6, 10)
+        block(black, 2, 41, 6, 10)
+        block(black, 32, 41, 6, 10)
+        block(black, 15, 2, 10, 4)
+        block(body, 16, 3, 8, 2)
+        poly(body, [(16, 6), (24, 6), (27, 11), (28, 17), (28, 45), (25, 54), (15, 54), (12, 45), (12, 17), (13, 11)])
+        block(body, 10, 19, 20, 4)
+        block(body, 8, 42, 24, 4)
+        block(glass, 15, 20, 10, 15)
+        block(reflection, 16, 21, 3, 8)
+        block(shade, 13, 36, 14, 4)
+        block(trim, 18, 8, 4, 7)
+        block(trim, 16, 47, 8, 2)
+        block(light, 10, 44, 3, 2)
+        block(light, 27, 44, 3, 2)
+        block(light, 13, 18, 2, 17)
+        block(light, 25, 18, 2, 17)
+        block(black, 8, 13, 5, 4)
+        block(black, 27, 13, 5, 4)
+        block(black, 3, 54, 34, 5)
+        block(body, 6, 55, 28, 2)
+        block(trim, 14, 14, 12, 3)
+        block(black, 17, 10, 6, 7)
+        block(shade, 9, 24, 22, 3)
+
+    sprite = pygame.transform.scale(px, (size, max(1, round(size * 1.5))))
+    angle = {(0, -1): 0, (1, 0): -90, (0, 1): 180, (-1, 0): 90}.get(facing, 0)
+    return pygame.transform.rotate(sprite, angle)
+
+
+# MEDIDAS Y CREACION DEL LABERINTO
+# hace que una medida sea impar
+def odd(n: int) -> int:
+    return n if n % 2 == 1 else n - 1
+
+
+# calcula el tamano del laberinto segun el nivel
+def maze_dimensions(level: int, cols_limit: int, rows_limit: int) -> tuple[int, int]:
+    start_cols = 27
+    start_rows = 19
+    cols = min(cols_limit, start_cols + ((level - 1) // 2) * 2)
+    rows = min(rows_limit, start_rows + ((level - 1) // 3) * 2)
+    return odd(cols), odd(rows)
+
+
+# crea el laberinto usando DFS y caminos aleatorios
+def generate_maze(cols: int, rows: int) -> list[list[int]]:
+    grid = [[1 for _ in range(cols)] for _ in range(rows)]
+    # al inicio todas las casillas son paredes (1)
+    start = (1, rows - 2)
+    grid[start[1]][start[0]] = 0
+    stack = [start]
+    # esta pila guarda por donde vamos pasando en el DFS
+
+    while stack:
+        x, y = stack[-1]
+        candidates: list[tuple[int, int, int, int]] = []
+        for dx, dy in ((2, 0), (-2, 0), (0, 2), (0, -2)):
+            nx, ny = x + dx, y + dy
+            if 1 <= nx < cols - 1 and 1 <= ny < rows - 1 and grid[ny][nx] == 1:
+                candidates.append((nx, ny, dx, dy))
+        if candidates:
+            nx, ny, dx, dy = random.choice(candidates)
+            # elegimos al azar por donde abrir el siguiente camino
+            grid[y + dy // 2][x + dx // 2] = 0
+            grid[ny][nx] = 0
+            stack.append((nx, ny))
+        else:
+            stack.pop()
+            # si no podemos seguir, regresamos un paso
+
+    grid[rows - 2][1] = 0
+    grid[1][cols - 2] = 0
+    return grid
+
+
+# BUSQUEDA DE RUTAS CON BFS
+# busca la ruta mas corta entre dos puntos
+def bfs(grid: list[list[int]], start: tuple[int, int], goal: tuple[int, int]) -> list[tuple[int, int]]:
+    queue = deque([start])
+    # BFS usa una cola para revisar posiciones cercanas primero
+    prev = {start: None}
+    while queue:
+        node = queue.popleft()
+        if node == goal:
+            path = []
+            while node is not None:
+                path.append(node)
+                node = prev[node]
+            return path[::-1]
+        x, y = node
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            q = (x + dx, y + dy)
+            if 0 <= q[1] < len(grid) and 0 <= q[0] < len(grid[0]) and grid[q[1]][q[0]] == 0 and q not in prev:
+                prev[q] = node
+                queue.append(q)
+    return []
+
+# DISTANCIAS, META Y MONEDAS
+# calcula que tan lejos esta cada casilla del inicio
+def distances_from(grid, start):
+    distances = {start: 0}
+    queue = deque([start])
+    # BFS usa una cola para revisar posiciones cercanas primero
+    while queue:
+        x, y = queue.popleft()
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            neighbor = (x + dx, y + dy)
+            nx, ny = neighbor
+            if (0 <= nx < len(grid[0]) and 0 <= ny < len(grid)
+                    and grid[ny][nx] == 0 and neighbor not in distances):
+                distances[neighbor] = distances[(x, y)] + 1
+                queue.append(neighbor)
+    return distances
+
+
+# elige una meta que quede lejos del inicio
+def choose_goal(grid, start):
+    distances = distances_from(grid, start)
+    cols, rows = len(grid[0]), len(grid)
+    edge_cells = [
+        (x, y) for (x, y) in distances
+        if (x == 1 or x == cols - 2 or y == 1 or y == rows - 2)
+        and (x, y) != start
+    ]
+    farthest = max(distances[cell] for cell in edge_cells)
+    candidates = [cell for cell in edge_cells
+                  if distances[cell] >= max(5, farthest * 0.70)]
+    return random.choice(candidates)
+
+
+# reparte las monedas por los caminos del laberinto
+def choose_coins(grid, start, goal, amount):
+    main_route = bfs(grid, start, goal)
+    route_index = {cell: i for i, cell in enumerate(main_route)}
+    cols, rows = len(grid[0]), len(grid)
+    queue = deque(main_route)
+    branch_dist = {cell: 0 for cell in main_route}
+    anchor = {cell: route_index[cell] for cell in main_route}
+    while queue:
+        x, y = queue.popleft()
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            nxt = (x + dx, y + dy)
+            if (0 <= nxt[0] < cols and 0 <= nxt[1] < rows
+                    and grid[nxt[1]][nxt[0]] == 0 and nxt not in branch_dist):
+                branch_dist[nxt] = branch_dist[(x, y)] + 1
+                anchor[nxt] = anchor[(x, y)]
+                queue.append(nxt)
+
+    available = [cell for cell, dist in branch_dist.items()
+                 if cell not in (start, goal) and 1 <= dist <= 5]
+    selected = set()
+    amount = min(amount, max(1, len(branch_dist) - 2))
+    for i in range(amount):
+        center = (i + 1) * (len(main_route) - 1) / (amount + 1)
+        choices = [cell for cell in available if cell not in selected]
+        if not choices:
+            break
+        def score(cell):
+            progress = abs(anchor[cell] - center)
+            same_branch = sum(abs(anchor[cell] - anchor[c]) < 6 for c in selected)
+            preferred_depth = abs(branch_dist[cell] - 3)
+            return (progress * 2.5 + same_branch * 30 + preferred_depth * 2
+                    + random.random() * 2)
+        selected.add(min(choices, key=score))
+
+    if len(selected) < amount:
+        for i in range(len(selected), amount):
+            center = (i + 1) * (len(main_route) - 1) / (amount + 1)
+            possibilities = [c for c in main_route[2:-2] if c not in selected]
+            if not possibilities:
+                break
+            selected.add(min(possibilities, key=lambda c: abs(route_index[c] - center)))
+    return selected
+
+
+# CLASE PRINCIPAL DEL JUEGO
+class RaceMazeGame:
+    # guarda los datos iniciales y prepara el juego
+    # aca empezamos guardando los datos que va a necesitar el juego
+    def __init__(self) -> None:
+        self.clock = pygame.time.Clock()
+        self.fullscreen = False
+        self.screen = pygame.display.set_mode(WINDOWED_SIZE, pygame.RESIZABLE)
+        pygame.display.set_caption(WINDOW_TITLE)
+
+        self.hud_height = 84
+        self.bottom_margin = 36
+        self.margin_x = 36
+        self.margin_y = 28
+        self.arena = pygame.Rect(0, 0, 0, 0)
+        self.help_rect = pygame.Rect(0, 0, 0, 0)
+
+        self.level = 1
+        self.total_coins_collected = 0
+        self.state = "garage"
+        self.selected_car_index = 0
+        self.selected_team_index = 0
+        self.garage_focus = 0
+        self.anim_since = pygame.time.get_ticks()
+        self.avatar_rects = []
+        self.team_left_rect = pygame.Rect(0, 0, 0, 0)
+        self.team_right_rect = pygame.Rect(0, 0, 0, 0)
+        self.start_rect = pygame.Rect(0, 0, 0, 0)
+        self.show_hint = False
+        self.show_controls = False
+        self.notice = ""
+        self.notice_until = 0
+        self.facing = (0, -1)
+        self.elapsed_when_stopped = 0.0
+        self.running = True
+
+        self.tile_size = 24
+        self.tire_sprite: pygame.Surface | None = None
+        self.coin_sprite: pygame.Surface | None = None
+
+        try:
+            if not pygame.mixer.get_init():
+                pygame.mixer.init(frequency=22050, size=-16, channels=2, buffer=512)
+        except pygame.error:
+            pass
+        self.sfx_coin = synth_sound([780, 1040, 1360], 0.17)
+        self.sfx_unlock = synth_sound([440, 660, 880, 1170], 0.36)
+        self.sfx_victory = synth_sound([523, 659, 784, 1046], 0.55)
+        self.sfx_wall = synth_sound([145, 115], 0.075, 0.08)
+        self.update_layout(*self.screen.get_size())
+        self.new_level(reset_level_number=False)
+        self.state = "garage"
+
+    # acomoda la ventana cuando cambia de tamaño
+    def update_layout(self, width: int, height: int) -> None:
+        width = max(960, width)
+        height = max(650, height)
+        if self.fullscreen:
+            self.screen = pygame.display.set_mode((width, height), pygame.FULLSCREEN)
+        else:
+            self.screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)
+
+        usable_y = height - self.hud_height - self.bottom_margin - self.margin_y
+        usable_x = width - self.margin_x * 2
+        self.arena = pygame.Rect(self.margin_x, self.hud_height + self.margin_y, usable_x, usable_y)
+        self.help_rect = pygame.Rect(width - 72, height - 72, 44, 44)
+        self.rebuild_cached_sprites()
+
+    # cambia entre pantalla normal y completa
+    def toggle_fullscreen(self) -> None:
+        self.fullscreen = not self.fullscreen
+        if self.fullscreen:
+            display = pygame.display.get_desktop_sizes()[0]
+            self.update_layout(*display)
+        else:
+            self.update_layout(*WINDOWED_SIZE)
+        self.build_level_geometry()
+
+    # actualiza el tamaño de las llantas y monedas
+    def rebuild_cached_sprites(self) -> None:
+        self.tire_sprite = build_tire_sprite(max(14, self.tile_size - 2))
+        self.coin_sprite = build_coin_sprite(max(14, self.tile_size - 4))
+
+    # crea el nivel, las monedas, la meta y el inicio
+    def build_level_geometry(self) -> None:
+        inner_margin = max(20, self.arena.width // 32)
+        max_grid_width = self.arena.width - inner_margin * 2
+        max_grid_height = self.arena.height - inner_margin * 2
+
+        cols_limit = odd(max_grid_width // 23)
+        rows_limit = odd(max_grid_height // 23)
+        cols_limit = max(27, cols_limit)
+        rows_limit = max(19, rows_limit)
+
+        cols, rows = maze_dimensions(self.level, cols_limit, rows_limit)
+        self.tile_size = min(max_grid_width // cols, max_grid_height // rows)
+        self.tile_size = max(14, min(32, self.tile_size))
+        self.rebuild_cached_sprites()
+
+        self.cols = cols
+        self.rows = rows
+        self.grid = generate_maze(cols, rows)
+        self.start_cell = (1, rows - 2)
+        self.goal_cell = choose_goal(self.grid, self.start_cell)
+        self.path_to_goal = bfs(self.grid, self.start_cell, self.goal_cell)
+        if not self.path_to_goal:
+            self.grid = generate_maze(cols, rows)
+            self.goal_cell = choose_goal(self.grid, self.start_cell)
+            self.path_to_goal = bfs(self.grid, self.start_cell, self.goal_cell)
+
+        self.coin_total = min(3 + (self.level - 1) // 2, 8)
+        self.coins = choose_coins(self.grid, self.start_cell, self.goal_cell, self.coin_total)
+        self.coin_total = len(self.coins)
+        self.collected_in_level = 0
+
+        maze_w = self.cols * self.tile_size
+        maze_h = self.rows * self.tile_size
+        self.maze_rect = rect_from_center(self.arena.center, (maze_w, maze_h))
+        self.player_cell = self.start_cell
+        self.facing = (0, -1)
+
+    # prepara un nivel desde el principio
+    def new_level(self, *, reset_level_number: bool = False) -> None:
+        if reset_level_number:
+            self.level = 1
+        self.build_level_geometry()
+        self.show_hint = False
+        self.state = "garage"
+        self.notice = ""
+        self.notice_until = 0
+        self.elapsed_when_stopped = 0.0
+        self.started_at = pygame.time.get_ticks()
+
+    # inicia o continua la carrera
+    def start_or_resume_level(self) -> None:
+        self.started_at = pygame.time.get_ticks() - int(self.elapsed_when_stopped * 1000)
+        self.state = "playing"
+
+    # pasa al siguiente nivel
+    def next_level(self) -> None:
+        self.level += 1
+        self.total_coins_collected += self.collected_in_level
+        self.build_level_geometry()
+        self.elapsed_when_stopped = 0.0
+        self.started_at = pygame.time.get_ticks()
+        self.state = "playing"
+
+    # calcula el tiempo de la partida
+    def current_seconds(self) -> float:
+        if self.state == "playing":
+            return (pygame.time.get_ticks() - self.started_at) / 1000.0
+        return self.elapsed_when_stopped
+
+    # muestra avisos por unos segundos
+    def flash(self, message: str, ms: int = 1600) -> None:
+        self.notice = message
+        self.notice_until = pygame.time.get_ticks() + ms
+
+    # busca el centro de una casilla
+    def cell_center(self, cell: tuple[int, int]) -> tuple[int, int]:
+        x, y = cell
+        return (
+            self.maze_rect.x + x * self.tile_size + self.tile_size // 2,
+            self.maze_rect.y + y * self.tile_size + self.tile_size // 2,
+        )
+
+    # comprueba si una casilla es camino y no pared
+    def is_path(self, cell: tuple[int, int]) -> bool:
+        x, y = cell
+        return 0 <= x < self.cols and 0 <= y < self.rows and self.grid[y][x] == 0
+
+    # obtiene el nombre del carro elegido
+    def selected_car_name(self) -> str:
+        return CAR_MODELS[self.selected_car_index]
+
+    # obtiene la escuderia seleccionada
+    def selected_team(self) -> dict:
+        return F1_TEAMS[self.selected_team_index]
+
+    # obtiene los colores de esa escuderia
+    def selected_palette(self) -> dict:
+        return self.selected_team()["colors"]
+
+    # cambia entre los cuatro carros
+    def cycle_avatar(self, step: int) -> None:
+        self.selected_car_index = (self.selected_car_index + step) % len(CAR_MODELS)
+        self.anim_since = pygame.time.get_ticks()
+
+    # cambia entre los colores de escuderias
+    def cycle_team(self, step: int) -> None:
+        self.selected_team_index = (self.selected_team_index + step) % len(F1_TEAMS)
+        self.anim_since = pygame.time.get_ticks()
+
+
+    # lee las teclas segun estemos en menu o jugando
+    def handle_key(self, key: int) -> None:
+        if key == pygame.K_F11:
+            self.toggle_fullscreen()
+            return
+
+        if self.state == "garage":
+            if key == pygame.K_ESCAPE:
+                self.running = False
+                return
+            if key in (pygame.K_UP, pygame.K_w):
+                self.cycle_avatar(-1)
+                return
+            if key in (pygame.K_DOWN, pygame.K_s):
+                self.cycle_avatar(1)
+                return
+            if key in (pygame.K_LEFT, pygame.K_a):
+                self.cycle_team(-1)
+                return
+            if key in (pygame.K_RIGHT, pygame.K_d):
+                self.cycle_team(1)
+                return
+            if key in (pygame.K_RETURN, pygame.K_SPACE):
+                self.start_or_resume_level()
+                return
+            return
+
+        if key == pygame.K_ESCAPE:
+            if self.show_controls:
+                self.show_controls = False
+                return
+            if self.state == "playing":
+                self.elapsed_when_stopped = self.current_seconds()
+                self.state = "paused"
+            elif self.state == "paused":
+                self.state = "garage"
+            return
+
+        if key in (pygame.K_RETURN, pygame.K_SPACE):
+            if self.state == "victory":
+                self.next_level()
+                return
+
+        if self.state == "paused" and key == pygame.K_p:
+            self.start_or_resume_level()
+            return
+
+        if self.state != "playing":
+            return
+
+        if key == pygame.K_p:
+            self.elapsed_when_stopped = self.current_seconds()
+            self.state = "paused"
+            return
+        if key == pygame.K_h:
+            self.show_hint = not self.show_hint
+            return
+        if key == pygame.K_r:
+            self.build_level_geometry()
+            self.started_at = pygame.time.get_ticks()
+            self.elapsed_when_stopped = 0.0
+            return
+
+        directions = {
+            pygame.K_UP: (0, -1),
+            pygame.K_w: (0, -1),
+            pygame.K_DOWN: (0, 1),
+            pygame.K_s: (0, 1),
+            pygame.K_LEFT: (-1, 0),
+            pygame.K_a: (-1, 0),
+            pygame.K_RIGHT: (1, 0),
+            pygame.K_d: (1, 0),
+        }
+        if key in directions:
+            self.move_player(*directions[key])
+
+    # revisa los clics en botones y opciones
+    def handle_mouse(self, pos: tuple[int, int]) -> None:
+        if self.state == "garage":
+            for i, rect in enumerate(self.avatar_rects):
+                if rect.collidepoint(pos):
+                    self.selected_car_index = i
+                    self.anim_since = pygame.time.get_ticks()
+                    self.garage_focus = 0
+                    return
+            if self.team_left_rect.collidepoint(pos):
+                self.cycle_team(-1)
+                self.garage_focus = 1
+                return
+            if self.team_right_rect.collidepoint(pos):
+                self.cycle_team(1)
+                self.garage_focus = 1
+                return
+            if self.start_rect.collidepoint(pos):
+                self.start_or_resume_level()
+                return
+            return
+
+        if self.help_rect.collidepoint(pos):
+            self.show_controls = not self.show_controls
+        else:
+            popup = self.controls_popup_rect()
+            if self.show_controls and popup.collidepoint(pos):
+                return
+            self.show_controls = False
+
+    # mueve el carro, recoge monedas y revisa la meta
+    def move_player(self, dx: int, dy: int) -> None:
+        target = (self.player_cell[0] + dx, self.player_cell[1] + dy)
+        if not self.is_path(target):
+            # si hay una pared, no dejamos avanzar al carro
+            return
+        self.player_cell = target
+        self.facing = (dx, dy)
+
+        if target in self.coins:
+            # al pasar sobre una moneda, la quitamos del mapa
+            self.coins.remove(target)
+            self.collected_in_level += 1
+            if self.sfx_coin:
+                self.sfx_coin.play()
+            if self.coins:
+                self.flash(f"MONEDA {self.collected_in_level}/{self.coin_total}", 2200)
+            else:
+                if self.sfx_unlock:
+                    self.sfx_unlock.play()
+                self.flash("TODAS LAS MONEDAS! SALIDA ABIERTA", 3200)
+
+        if target == self.goal_cell:
+            # para ganar necesitamos haber recogido todas las monedas
+            if self.coins:
+                self.flash(f"META CERRADA: FALTAN {len(self.coins)} MONEDAS", 2400)
+            else:
+                self.elapsed_when_stopped = self.current_seconds()
+                self.state = "victory"
+                if self.sfx_victory:
+                    self.sfx_victory.play()
+
+
+# DIBUJO DEL MENU DEL GARAJE
+    # muestra los carros y los colores para elegir
+    def draw_garage(self) -> None:
+        w, h = self.screen.get_size()
+        now = pygame.time.get_ticks()
+        phase = (now - self.anim_since) / 1000.0
+        scale_in = min(1.0, phase * 5)
+        bounce = (1 - scale_in) ** 2 * 10
+        self.screen.fill((10, 20, 30))
+        for y in range(0, h, 24):
+            pygame.draw.rect(self.screen, (16, 35, 43) if (y // 24) % 2 else (15, 30, 39), (0, y, w, 24))
+        panel = pygame.Rect(45, 28, w - 90, h - 56)
+        pygame.draw.rect(self.screen, (5, 10, 16), panel.move(4, 6), border_radius=26)
+        pygame.draw.rect(self.screen, (13, 23, 38), panel, border_radius=26)
+        pygame.draw.rect(self.screen, (75, 96, 112), panel, 2, border_radius=26)
+        bar = pygame.Rect(panel.x + 16, panel.y + 15, 7, panel.height - 30)
+        pygame.draw.rect(self.screen, YELLOW, bar, border_radius=4)
+        label = make_title_font(34).render("RACE MAZE", True, WHITE)
+        self.screen.blit(label, label.get_rect(center=(panel.centerx, panel.y + 46)))
+        description = make_font(17).render("ELIGE TU COCHE Y ESCUDERIA", True, SOFT_WHITE)
+        self.screen.blit(description, description.get_rect(center=(panel.centerx, panel.y + 87)))
+        count = make_font(14).render("01   SELECCIONA TU AUTOMOVIL", True, YELLOW)
+        self.screen.blit(count, (panel.x + 45, panel.y + 124))
+        cw, ch, gap = 171, 159, 23
+        total = 4 * cw + 3 * gap
+        sx = panel.centerx - total // 2
+        self.avatar_rects = []
+        for i, name in enumerate(CAR_MODELS):
+            selected = self.selected_car_index == i
+            rect = pygame.Rect(sx + i * (cw + gap), panel.y + 151, cw, ch)
+            self.avatar_rects.append(rect)
+            pygame.draw.rect(self.screen, (18, 34, 49) if selected else (18, 27, 40), rect, border_radius=16)
+            pygame.draw.rect(self.screen, YELLOW if selected else (59, 75, 92), rect, 3 if selected else 1, border_radius=16)
+            if selected:
+                pygame.draw.rect(self.screen, YELLOW, (rect.x + 20, rect.bottom - 4, rect.width - 40, 4), border_radius=2)
+            lift = int(bounce) if selected else 0
+            car = build_car_sprite(64 if selected else 58, (0, -1), i, GRAY_TEAM["colors"])
+            self.screen.blit(car, car.get_rect(center=(rect.centerx, rect.y + 70 - lift)))
+            txt = make_font(16).render(name, True, WHITE if selected else (164, 181, 194))
+            self.screen.blit(txt, txt.get_rect(center=(rect.centerx, rect.bottom - 26)))
+        help_txt = make_font(13).render("ARRIBA / ABAJO: COCHE     IZQUIERDA / DERECHA: COLOR", True, (164, 181, 194))
+        self.screen.blit(help_txt, help_txt.get_rect(center=(panel.centerx, panel.y + 325)))
+        team_title = make_font(14).render("02   ELIGE UNA ESCUDERIA Y SU COLOR", True, YELLOW)
+        self.screen.blit(team_title, (panel.x + 45, panel.y + 362))
+        team_rect = pygame.Rect(panel.x + 45, panel.y + 393, panel.width - 90, 180)
+        pygame.draw.rect(self.screen, (19, 35, 51), team_rect, border_radius=18)
+        pygame.draw.rect(self.screen, (64, 83, 102), team_rect, 2, border_radius=18)
+        self.team_left_rect = pygame.Rect(team_rect.x + 17, team_rect.centery - 25, 48, 50)
+        self.team_right_rect = pygame.Rect(team_rect.right - 65, team_rect.centery - 25, 48, 50)
+        for rect, arrow in ((self.team_left_rect, "<"), (self.team_right_rect, ">")):
+            pygame.draw.rect(self.screen, (33, 49, 65), rect, border_radius=10)
+            pygame.draw.rect(self.screen, YELLOW, rect, 2, border_radius=10)
+            glyph = make_title_font(27).render(arrow, True, WHITE)
+            self.screen.blit(glyph, glyph.get_rect(center=rect.center))
+        t = self.selected_team()
+        team_x = team_rect.centerx + 100
+        car = build_car_sprite(79, (0, -1), self.selected_car_index, self.selected_palette())
+        self.screen.blit(car, car.get_rect(center=(team_rect.centerx - 124, team_rect.centery - int(bounce))))
+        team_label = make_title_font(25).render(t["name"].upper(), True, WHITE)
+        self.screen.blit(team_label, team_label.get_rect(center=(team_x, team_rect.y + 53)))
+        tag = make_font(13).render(f"ESCUDERIA {self.selected_team_index + 1:02} / {len(F1_TEAMS):02}", True, SOFT_WHITE)
+        self.screen.blit(tag, tag.get_rect(center=(team_x, team_rect.y + 82)))
+        for j, k in enumerate(("R", "D", "Y", "W")):
+            r = pygame.Rect(team_x - 76 + j * 43, team_rect.y + 105, 33, 28)
+            pygame.draw.rect(self.screen, t["colors"][k], r, border_radius=5)
+            pygame.draw.rect(self.screen, (125, 145, 164), r, 1, border_radius=5)
+        for j in range(7):
+            col = YELLOW if j == (self.selected_team_index % 7) else (67, 83, 97)
+            pygame.draw.circle(self.screen, col, (team_rect.centerx - 43 + j * 15, team_rect.bottom - 15), 3)
+        self.start_rect = pygame.Rect(panel.centerx - 220, panel.bottom - 76, 440, 53)
+        pygame.draw.rect(self.screen, (244, 197, 68), self.start_rect, border_radius=13)
+        pygame.draw.rect(self.screen, (255, 227, 133), self.start_rect, 2, border_radius=13)
+        start_label = make_title_font(23).render("INICIAR", True, (12, 20, 30))
+        self.screen.blit(start_label, start_label.get_rect(center=self.start_rect.center))
+
+
+# PANTALLA PRINCIPAL Y LABERINTO
+    # decide que pantalla se tiene que dibujar
+    def draw(self) -> None:
+        if self.state == "garage":
+            self.draw_garage()
+            pygame.display.flip()
+            return
+        self.screen.fill(GRASS)
+        self.draw_background()
+        self.draw_maze()
+        self.draw_hud()
+        if self.state in {"paused", "victory"}:
+            self.draw_overlay()
+        self.draw_hamburger()
+        if self.show_controls:
+            self.draw_controls_popup()
+        pygame.display.flip()
+
+    # pinta el fondo y el circuito
+    def draw_background(self) -> None:
+        w, h = self.screen.get_size()
+        for y in range(0, h, 22):
+            color = GRASS if (y // 22) % 2 == 0 else GRASS_DARK
+            pygame.draw.rect(self.screen, color, (0, y, w, 22))
+
+        pygame.draw.rect(self.screen, HUD_BG, (0, 0, w, self.hud_height))
+
+        outer = self.arena.inflate(16, 16)
+        pygame.draw.rect(self.screen, BLACK, outer, border_radius=32)
+        pygame.draw.rect(self.screen, SOFT_WHITE, outer.inflate(-6, -6), border_radius=30)
+        pygame.draw.rect(self.screen, ASPHALT_DARK, self.arena.inflate(4, 4), border_radius=26)
+        pygame.draw.rect(self.screen, ASPHALT, self.arena, border_radius=24)
+
+        dash_w = max(18, self.arena.width // 25)
+        dash_h = 4
+        top_y = self.arena.y + 18
+        bottom_y = self.arena.bottom - 22
+        x = self.arena.x + 26
+        while x < self.arena.right - 40:
+            pygame.draw.rect(self.screen, SOFT_WHITE, (x, top_y, dash_w, dash_h))
+            pygame.draw.rect(self.screen, SOFT_WHITE, (x, bottom_y, dash_w, dash_h))
+            x += dash_w + 18
+
+    # dibuja paredes, caminos, monedas, meta y carro
+    def draw_maze(self) -> None:
+        shadow_rect = self.maze_rect.move(5, 5)
+        pygame.draw.rect(self.screen, (35, 38, 43), shadow_rect)
+        pygame.draw.rect(self.screen, ASPHALT, self.maze_rect)
+
+        for y in range(self.rows):
+            for x in range(self.cols):
+                cell_rect = pygame.Rect(
+                    self.maze_rect.x + x * self.tile_size,
+                    self.maze_rect.y + y * self.tile_size,
+                    self.tile_size,
+                    self.tile_size,
+                )
+                if self.grid[y][x] == 0:
+                    pygame.draw.rect(self.screen, (72, 76, 84), cell_rect)
+                else:
+                    pygame.draw.rect(self.screen, (9, 13, 20), cell_rect)
+                    inner = cell_rect.inflate(-2, -2)
+                    pygame.draw.rect(self.screen, (38, 47, 60), inner)
+                    pygame.draw.rect(self.screen, (73, 84, 98),
+                                     (inner.x + 1, inner.y + 1, inner.width - 2, 3))
+                    wheel_size = max(12, self.tile_size - 5)
+                    tire = self.tire_sprite
+                    self.screen.blit(tire, tire.get_rect(center=cell_rect.center))
+                    north_open = y > 0 and self.grid[y - 1][x] == 0
+                    south_open = y + 1 < self.rows and self.grid[y + 1][x] == 0
+                    west_open = x > 0 and self.grid[y][x - 1] == 0
+                    east_open = x + 1 < self.cols and self.grid[y][x + 1] == 0
+                    stripe = WHITE if (x + y) % 2 else RED
+                    edge = max(2, self.tile_size // 8)
+                    if north_open:
+                        pygame.draw.rect(self.screen, stripe, (cell_rect.x, cell_rect.y, self.tile_size, edge))
+                    if south_open:
+                        pygame.draw.rect(self.screen, stripe, (cell_rect.x, cell_rect.bottom - edge, self.tile_size, edge))
+                    if west_open:
+                        pygame.draw.rect(self.screen, stripe, (cell_rect.x, cell_rect.y, edge, self.tile_size))
+                    if east_open:
+                        pygame.draw.rect(self.screen, stripe, (cell_rect.right - edge, cell_rect.y, edge, self.tile_size))
+
+        if self.show_hint:
+            target = self.goal_cell if not self.coins else min(self.coins, key=lambda c: len(bfs(self.grid, self.player_cell, c)) or 9999)
+            hint_path = bfs(self.grid, self.player_cell, target)
+            for cell in hint_path[1:-1]:
+                cx, cy = self.cell_center(cell)
+                size = max(4, self.tile_size // 4)
+                pygame.draw.rect(self.screen, CYAN, (cx - size // 2, cy - size // 2, size, size))
+
+        locked = bool(self.coins)
+        goal_sprite = build_goal_sprite(max(14, self.tile_size - 4), locked)
+        self.screen.blit(goal_sprite, goal_sprite.get_rect(center=self.cell_center(self.goal_cell)))
+
+        for coin in self.coins:
+            self.screen.blit(self.coin_sprite, self.coin_sprite.get_rect(center=self.cell_center(coin)))
+
+        player_sprite = build_car_sprite(max(12, int(self.tile_size * 0.58)), self.facing, self.selected_car_index, self.selected_palette())
+        self.screen.blit(player_sprite, player_sprite.get_rect(center=self.cell_center(self.player_cell)))
+
+# TEXTOS Y CONTROLES EN PANTALLA
+    # muestra el nivel, el tiempo y los avisos
+    def draw_hud(self) -> None:
+        w = self.screen.get_width()
+        title = render_text_with_outline("RACE MAZE", make_title_font(28), WHITE, outline=(7, 12, 22), thickness=2)
+        self.screen.blit(title, (16, 8))
+
+        level_text = render_text_with_outline(f"Nivel {self.level}", make_title_font(18), YELLOW, outline=(31, 38, 53), thickness=1)
+        secs = int(self.current_seconds())
+        time_text = render_text_with_outline(
+            f"TIEMPO {secs // 60:02}:{secs % 60:02}", make_title_font(18), WHITE, outline=(31, 38, 53), thickness=1
+        )
+
+        self.screen.blit(level_text, level_text.get_rect(center=(w // 2, 18)))
+        self.screen.blit(time_text, time_text.get_rect(topright=(w - 16, 10)))
+
+
+        if self.notice and pygame.time.get_ticks() < self.notice_until and self.state == "playing":
+            note_font = make_title_font(17)
+            note = note_font.render(self.notice, True, YELLOW)
+            pad_x, pad_y = 12, 7
+            back = note.get_rect(center=(self.arena.centerx, self.arena.y - 12)).inflate(pad_x * 2, pad_y * 2)
+            pygame.draw.rect(self.screen, BLACK, back.move(3, 3), border_radius=7)
+            pygame.draw.rect(self.screen, HUD_BG, back, border_radius=7)
+            pygame.draw.rect(self.screen, YELLOW, back, 2, border_radius=7)
+            self.screen.blit(note, note.get_rect(center=back.center))
+
+    # dibuja el boton de ayuda
+    def draw_hamburger(self) -> None:
+        box = self.help_rect
+        pygame.draw.rect(self.screen, HUD_BG, box.move(3, 3), border_radius=8)
+        pygame.draw.rect(self.screen, (24, 39, 61), box, border_radius=8)
+        pygame.draw.rect(self.screen, YELLOW, box, 3, border_radius=8)
+        q = render_pixel_text("?", WHITE, base_size=17, scale=2)
+        self.screen.blit(q, q.get_rect(center=box.center))
+
+    # calcula donde va el cuadro de ayuda
+    def controls_popup_rect(self) -> pygame.Rect:
+        return pygame.Rect(self.screen.get_width() - 380, self.screen.get_height() - 304, 344, 224)
+
+    # muestra los controles cuando abrimos ayuda
+    def draw_controls_popup(self) -> None:
+        rect = self.controls_popup_rect()
+        pygame.draw.rect(self.screen, BLACK, rect.move(5, 5), border_radius=9)
+        pygame.draw.rect(self.screen, HUD_BG, rect, border_radius=9)
+        pygame.draw.rect(self.screen, YELLOW, rect, 2, border_radius=9)
+        title = render_text_with_outline("CONTROLES", make_title_font(18), YELLOW, outline=(31, 38, 53), thickness=1)
+        self.screen.blit(title, (rect.x + 14, rect.y + 10))
+        lines = [
+            "Flechas / WASD : Mover",
+            "Enter / Space : Continuar",
+            "H : Ruta de ayuda",
+            "P : Pausar / Seguir",
+            "R : Reiniciar nivel",
+            "F11 : Pantalla completa",
+            "ESC : Pausar / Garaje",
+        ]
+        line_font = make_font(15)
+        for index, line in enumerate(lines):
+            item = line_font.render(line, True, WHITE)
+            self.screen.blit(item, (rect.x + 14, rect.y + 48 + 23 * index))
+
+    # muestra la pausa o pantalla de victoria
+    def draw_overlay(self) -> None:
+        veil = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
+        veil.fill(SHADOW)
+        self.screen.blit(veil, (0, 0))
+
+        box = rect_from_center(self.screen.get_rect().center, (min(760, self.screen.get_width() - 120), 230))
+        pygame.draw.rect(self.screen, HUD_BG, box, border_radius=14)
+        pygame.draw.rect(self.screen, WHITE, box, 3, border_radius=14)
+
+        if self.state == "paused":
+            heading = "PAUSA"
+            lines = [
+                "Carrera en PAUSA",
+                "P para continuar",
+                "ESC para elegir otro auto",
+            ]
+            colors = [WHITE, YELLOW, SOFT_WHITE]
+        else:
+            heading = "NIVEL COMPLETADO"
+            t = int(self.elapsed_when_stopped)
+            lines = [
+                f"Nivel {self.level}   Monedas {self.collected_in_level}/{self.coin_total}",
+                f"Tiempo {t // 60:02}:{t % 60:02}",
+                "ENTER o ESPACIO para el siguiente nivel",
+            ]
+            colors = [WHITE, GREEN, YELLOW]
+
+        head = render_text_with_outline(heading, make_title_font(28), WHITE, outline=(31, 38, 53), thickness=2)
+        self.screen.blit(head, head.get_rect(center=(box.centerx, box.y + 48)))
+
+        body_font = make_font(18)
+        y = box.y + 108
+        for line, color in zip(lines, colors):
+            surf = body_font.render(line, True, color)
+            self.screen.blit(surf, surf.get_rect(center=(box.centerx, y)))
+            y += 34
+
+# BUCLE PRINCIPAL: AQUI EL JUEGO SE MANTIENE ACTIVO
+    # revisa eventos y actualiza el juego cada cuadro
+    def run(self) -> None:
+        repeat_enabled = False
+        pygame.key.set_repeat()
+        while self.running:
+            self.clock.tick(FPS)
+            should_repeat = self.state != "garage"
+            # en el laberinto dejamos mantener la tecla; en el menu no
+            if should_repeat != repeat_enabled:
+                if should_repeat:
+                    pygame.key.set_repeat(170, 80)
+                else:
+                    pygame.key.set_repeat()
+                repeat_enabled = should_repeat
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+                elif event.type == pygame.KEYDOWN:
+                    self.handle_key(event.key)
+                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    self.handle_mouse(event.pos)
+                elif event.type == pygame.VIDEORESIZE and not self.fullscreen:
+                    self.update_layout(event.w, event.h)
+                    self.build_level_geometry()
+
+            self.draw()
+
+        pygame.quit()
+
+
+# INICIO DEL PROGRAMA
+if __name__ == "__main__":
+    RaceMazeGame().run()
